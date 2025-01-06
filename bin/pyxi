@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+
+
+
+## 🐸 Start imports
+# external dependencies:
+import argparse
+from argparse_color_formatter import ColorRawDescriptionHelpFormatter
+from datetime import datetime
+import os
+import sys
+from termcolor import colored
+# imports from lib/:
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+import backports
+import pyxi
+## 🐸 End imports
+
+
+
+## 🐸 Start cool froggy :)
+#      ___     ___
+#     /•  \~~~/•  \
+#    |     | |     |
+#    /\   /   \   /\
+#  _|       U       |_
+# /  \_____________/  \
+# \ \ |   |   |   | / /
+# uuu ooooo~~~ooooo uuu
+def frogborder(text):
+	return colored(text, 'green', attrs=['bold'])
+def frogfill(text):
+	return colored(text, 'white', 'on_green')
+def frogeye(text):
+	return colored(text, 'grey', 'on_white')
+def frogmouth(text):
+	return colored(text, 'grey', 'on_green')
+ASCII_BULLFROG = '\n'.join((
+	frogborder('     ___     ___'),
+	'    ' + frogborder('/') + frogeye('•  ') + frogborder('\\~~~/') + frogeye('•  ') + frogborder('\\'),
+	'   ' + frogborder('|') + frogeye('     ') + frogfill('| |') + frogeye('     ') + frogborder('|'),
+	'   ' + frogborder('/') + frogfill('\\') + frogeye('   ') + frogfill('/   \\') + frogeye('   ') + frogfill('/') + frogborder('\\'),
+	' ' + frogborder('_|') + frogfill(' '*7) + frogmouth('U') + frogfill(' '*7) + frogborder('|_'),
+	frogborder('/') + frogfill('  \\_____________/  ') + frogborder('\\'),
+	frogborder('\\') + frogfill(' \\ ') + frogborder('|') + frogfill('   |   |   ') + frogborder('|') + frogfill(' / ') + frogborder('/'),
+	frogfill('uuu') + frogborder(' ') + frogfill('ooooo') + frogborder('~~~') + frogfill('ooooo') + frogborder(' ') + frogfill('uuu'),
+))
+DESCRIPTION = ASCII_BULLFROG + '\n\npyxicephalus\na collection of CourseLeaf CLI utilities'
+## 🐸 End cool froggy :)
+
+
+
+## 🐸 Start cli arg parsing
+
+# top-level parser
+parser = argparse.ArgumentParser(description=DESCRIPTION, formatter_class=ColorRawDescriptionHelpFormatter)
+subparsers = parser.add_subparsers(title='for detailed command-specific information, use pyxi [command] --help', metavar='  valid commands:')
+
+# cpclsite parser
+parser_cpclsite = subparsers.add_parser('cpclsite', help='print a link to cpclsite, using the dev server associated with the current build server')
+parser_cpclsite.add_argument('source', type=str, help='the client or dev site to copy (e.g. tarleton or tarleton-cimr-impl)')
+parser_cpclsite.add_argument('suffix', type=str, nargs='?', help='the suffix to append to the client code when naming the dev site (ignored if copying dev-to-dev, use --destination instead)')
+parser_cpclsite.add_argument('--prodenv', '--prod', '-p', '--source', '--src', '-s', type=str, default='next', help='the source production environment to copy from (next, test, etc), if not copying dev-to-dev')
+parser_cpclsite.add_argument('--destination', '--dest', '-d', type=str, nargs='?', help='the destination dev site, if copying dev-to-dev')
+parser_cpclsite.add_argument('--anonymous', '--anon', '-a', action='store_true', help='do not automatically include username before the suffix')
+parser_cpclsite.set_defaults(func=pyxi.print_link_to_cpclsite)
+
+# devsite parser
+parser_devsite = subparsers.add_parser('devsite', help='print a link to the devsite associated with the working directory')
+parser_devsite.add_argument('invokestep', type=str, help='the step to invoke')
+parser_devsite.add_argument('path', type=str, default='/index.html', help='the path to use when invoking the step')
+parser_devsite.set_defaults(func=pyxi.print_link_to_devsite)
+
+# versions parser
+parser_versions = subparsers.add_parser('versions', help='print the versions of CourseLeaf products and CGIs installed on the site associated with the current working directory')
+parser_versions.set_defaults(func=pyxi.show_versions)
+
+# patches parser
+parser_patches = subparsers.add_parser('patches', help='print information about patches applied on a CourseLeaf environment')
+parser_patches.add_argument('environment', type=str, nargs='?', help='the environment to print patch info for; acceptable formats: clientname (defaults to test), clientname-test, clientname-test/test, clientname/next, devsite-name, devsite-name.dev7; defaults to current working directory')
+parser_patches.add_argument('--range', '-r', type=backports.datetime_fromisoformat, nargs=2, help='print patch history info between two date/times (in ISO 8601 format or "now"), instead of info since the last resync')
+parser_patches.add_argument('--all', '-a', help='print all available info in uas.log, instead of info since the last resync')
+parser_patches.set_defaults(func=pyxi.print_applied_patches)
+
+# patchinfo parser
+parser_patchinfo = subparsers.add_parser('patchinfo', help='print information about a patch')
+parser_patchinfo.add_argument('id', type=str, nargs=1, help='the patch key, or a patch label instead (format: clientname#123)')
+parser_patchinfo.set_defaults(func=pyxi.print_patch_details)
+
+# findpatch parser
+parser_findpatch = subparsers.add_parser('findpatch', help='locate devsites with an open patch')
+parser_findpatch.add_argument('id', type=str, nargs=1, help='the patch key, or a patch label instead (format: clientname#123)')
+parser_findpatch.set_defaults(func=pyxi.print_devsites_with_patch)
+
+# uasblame TODO
+parser_uasblame = subparsers.add_parser('uasblame', help='(WIP) find patches changing specific attributes/code (slow)')
+parser_uasblame.add_argument('client', type=str, nargs=1, help='the client id');
+parser_uasblame.add_argument('env', type=str, nargs=1, help='the environment that has the change you want to blame');
+parser_uasblame.add_argument('file', type=str, nargs=1, help='the file to blame');
+parser_uasblame.add_argument('line', type=str, nargs='?', help='the attribute or LOC to blame');
+
+# all done
+args = parser.parse_args()
+## 🐸 End cli arg parsing
+
+
+
+
+
+## 🐸 Run the chosen command and print its output
+if 'func' in args:
+	command_output = args.func(args)
+	if command_output:
+		print(command_output)
+else:
+	parser.print_help()
